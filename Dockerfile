@@ -1,7 +1,7 @@
 # Multi-stage Rust build for whisper-rust-api
 
 # Stage 1: Builder
-FROM rust:1.75 as builder
+FROM rust:latest as builder
 
 WORKDIR /app
 
@@ -10,6 +10,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     cmake \
     pkg-config \
     libssl-dev \
+    clang \
+    libclang-dev \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy Cargo files
@@ -22,15 +24,16 @@ COPY src ./src
 RUN cargo build --release
 
 # Stage 2: Runtime
-FROM debian:bookworm-slim
+FROM debian:testing
 
 WORKDIR /app
 
-# Install runtime dependencies
+# Install runtime dependencies (including ffmpeg for audio format conversion)
 RUN apt-get update && apt-get install -y --no-install-recommends \
     libssl3 \
     ca-certificates \
     curl \
+    ffmpeg \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy binary from builder
