@@ -1,193 +1,88 @@
 # Whisper Rust API
 
-🚀 **High-performance transcription API powered by whisper.cpp and Rust**
+![Rust](https://img.shields.io/badge/Rust-1.70%2B-orange)
+![Version](https://img.shields.io/badge/version-0.1.0-blue)
+![Docker](https://img.shields.io/badge/Docker-ready-brightgreen)
+![License](https://img.shields.io/badge/License-MIT-green)
 
-A modern, efficient REST API for audio transcription using the `whisper-rs` bindings to whisper.cpp. Built with Axum web framework and Tokio async runtime.
+A speech-to-text transcription API powered by [OpenAI's Whisper](https://openai.com/research/whisper) model. Convert audio files to text with high accuracy.
 
-## Features
+## What it does
 
-- ⚡ **Fast**: Compiled Rust binary with minimal overhead
-- 🔒 **Safe**: Memory-safe Rust implementation with no unsafe code in API layer
-- 🎯 **Simple**: Clean REST API with minimal dependencies
-- 📦 **Self-contained**: Single binary deployment
-- 🐳 **Docker-ready**: Optimized multi-stage Dockerfile
-- 📊 **Observable**: Structured logging with tracing
-- 🔧 **Configurable**: Environment variables and command-line arguments
+This API transcribes audio files to text. Simply upload an audio file and get back the transcribed text along with segment-level details including timestamps.
 
-## Architecture
-
-```
-whisper-rust-api/
-├── src/
-│   ├── main.rs           # Application entry point and server setup
-│   ├── config.rs         # Configuration management (env vars + CLI args)
-│   ├── error.rs          # Error types and HTTP response mapping
-│   ├── whisper.rs        # Whisper.cpp integration and audio processing
-│   └── api/
-│       ├── mod.rs        # API module exports
-│       ├── transcribe.rs # Transcription endpoint
-│       └── info.rs       # Info/metadata endpoint
-├── run/                  # Operational scripts
-│   ├── start.sh         # Start the server
-│   ├── stop.sh          # Stop the server
-│   ├── dev.sh           # Development mode with auto-reload
-│   └── test.sh          # Run tests
-├── Dockerfile           # Production Docker image
-├── Cargo.toml           # Rust dependencies
-└── README.md
-```
-
-## Dependencies
-
-### Core Dependencies
-- **axum** - Modern async web framework
-- **tokio** - Async runtime with full features
-- **whisper-rs** - Rust bindings to whisper.cpp
-- **serde/serde_json** - Serialization
-- **tracing** - Structured logging
-
-### Build Dependencies
-- Rust 1.75+
-- CMake (for whisper.cpp compilation)
-- OpenSSL development headers
-
-## Installation
+## Quick Start
 
 ### Prerequisites
 
-1. **Rust**: Install from [rustup.rs](https://rustup.rs/)
+- A machine with ffmpeg installed (for audio format support)
+- 2GB+ of disk space for the model file
+
+### Setup and Run
+
+1. **Clone and navigate to the project**
    ```bash
-   curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+   git clone <repository-url>
+   cd whisper-rust-api
    ```
 
-2. **Whisper Model**: Download a model file
+2. **Download the transcription model**
    ```bash
-   mkdir -p models
-   # Download a model (e.g., base.en: ~140MB)
-   wget https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-base.en.bin -O models/ggml-base.en.bin
+   make download-model
    ```
 
-### Build from Source
+3. **Configure (optional)**
+   ```bash
+   cp .env.example .env
+   ```
+   Edit `.env` if you need to change the port or other settings.
+
+4. **Start the API**
+   ```bash
+   make start
+   ```
+
+The API is now running at `http://localhost:8000`
+
+## Using the API
+
+### Transcribe Audio
+
+Upload an audio file to be transcribed:
 
 ```bash
-# Clone/navigate to project
-cd /Users/pweiss/dev/whisper-rust-api
-
-# Build release binary
-cargo build --release
-
-# Binary will be at: target/release/whisper-rust-api
+curl -X POST --data-binary @audio.mp3 http://localhost:8000/transcribe
 ```
 
-## Usage
-
-### Quick Start
-
-```bash
-# Start the server
-./run/start.sh
-
-# Test health endpoint
-curl http://localhost:8000/health
-
-# Get API info
-curl http://localhost:8000/info
-
-# Transcribe audio
-curl -X POST -F "file=@audio.wav" http://localhost:8000/transcribe
-```
-
-### Stop Server
-
-```bash
-./run/stop.sh
-```
-
-### Development Mode (with auto-reload)
-
-```bash
-./run/dev.sh
-# Requires: cargo install cargo-watch
-```
-
-### Run Tests
-
-```bash
-./run/test.sh
-```
-
-## Configuration
-
-Configure via environment variables or command-line arguments:
-
-```bash
-# Environment variables (higher priority)
-export WHISPER_MODEL=/path/to/model.bin
-export WHISPER_HOST=0.0.0.0
-export WHISPER_PORT=8000
-export WHISPER_THREADS=4
-export RUST_LOG=debug
-
-# Or command-line arguments
-cargo run -- --model-path /path/to/model.bin --port 9000
-
-# Or .env file
-echo "WHISPER_MODEL=./models/ggml-base.en.bin" > .env
-cargo run
-```
-
-### Environment Variables
-
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `WHISPER_MODEL` | `./models/ggml-base.en.bin` | Path to whisper.cpp model |
-| `WHISPER_HOST` | `0.0.0.0` | Server bind address |
-| `WHISPER_PORT` | `8000` | Server port |
-| `WHISPER_THREADS` | `4` | Inference threads |
-| `RUST_LOG` | `info` | Log level (debug, info, warn, error) |
-
-## API Endpoints
-
-### POST /transcribe
-
-Transcribe audio file.
-
-**Request:**
-- Method: `POST`
-- Content-Type: `application/octet-stream` or multipart form data
-- Body: Raw audio bytes (16-bit PCM WAV format)
+Supported formats: WAV, MP3, M4A, FLAC, OGG, and more.
 
 **Response:**
 ```json
 {
   "result": {
-    "text": "Full transcription text",
+    "text": "Hello, this is a transcription example.",
     "segments": [
       {
         "id": 0,
         "start": 0,
-        "end": 1234,
-        "text": "Segment text"
+        "end": 2560,
+        "text": "Hello, this is a transcription example."
       }
     ]
   },
-  "processing_time_ms": 5234
+  "processing_time_ms": 1234
 }
 ```
 
-**Example:**
+The `segments` array includes individual text chunks with their start and end times (in milliseconds).
+
+### Check API Status
+
 ```bash
-curl -X POST \
-  -H "Content-Type: application/octet-stream" \
-  --data-binary @audio.wav \
-  http://localhost:8000/transcribe
+curl http://localhost:8000/health
 ```
 
-### GET /health
-
-Health check endpoint.
-
-**Response:**
+Response:
 ```json
 {
   "status": "ok",
@@ -195,212 +90,161 @@ Health check endpoint.
 }
 ```
 
-### GET /info
-
-Get API information and configuration.
-
-**Response:**
-```json
-{
-  "name": "Whisper Rust API",
-  "version": "0.1.0",
-  "model_path": "/path/to/model.bin",
-  "threads": 4,
-  "endpoints": {
-    "POST /transcribe": "Transcribe audio file",
-    "GET /health": "Health check",
-    "GET /info": "API information"
-  }
-}
-```
-
-## Docker Deployment
-
-### Build Image
+### Get API Info
 
 ```bash
-docker build -t whisper-rust-api .
+curl http://localhost:8000/info
 ```
 
-### Run Container
+Shows the current model, configuration, and available endpoints.
+
+## Helper Scripts
+
+Run `make help` to see all available commands:
+
+```
+make start         # Start the API server
+make stop          # Stop the API server
+make dev           # Run with auto-reload for development
+make build         # Build the application
+make test          # Run tests
+make clean         # Clean up build files
+make docker-run    # Run in Docker
+make docker-down   # Stop Docker container
+make docker-logs   # View Docker logs
+```
+
+## Deployment Options
+
+### Local Installation
+
+Requires Rust to be installed. Then:
 
 ```bash
-# Basic
-docker run -p 8000:8000 \
-  -v $(pwd)/models:/app/models \
-  whisper-rust-api
-
-# With custom model
-docker run -p 8000:8000 \
-  -e WHISPER_MODEL=/app/models/ggml-large.bin \
-  -v $(pwd)/models:/app/models \
-  whisper-rust-api
-
-# Detached with health check
-docker run -d \
-  --name whisper-api \
-  -p 8000:8000 \
-  -v $(pwd)/models:/app/models \
-  --health-cmd='curl -f http://localhost:8000/health' \
-  --health-interval=30s \
-  whisper-rust-api
+make build
+make start
 ```
 
-### Docker Compose
+### Docker
 
-Create `docker-compose.yml`:
-```yaml
-version: '3.8'
-
-services:
-  whisper-api:
-    build: .
-    ports:
-      - "8000:8000"
-    environment:
-      RUST_LOG: info
-      WHISPER_THREADS: 4
-    volumes:
-      - ./models:/app/models
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-```
-
-Start: `docker-compose up`
-
-## Performance
-
-### Benchmarks
-
-Running on Apple Silicon (M3 Max):
-
-| Model | Audio Length | Time | Memory |
-|-------|-------------|------|--------|
-| base.en (140MB) | 30s | ~3s | ~200MB |
-| small.en (461MB) | 30s | ~8s | ~500MB |
-| medium.en (1.5GB) | 30s | ~20s | ~1.2GB |
-
-### Optimization Tips
-
-1. **Use smaller models** for faster inference (tiny, base, small)
-2. **Increase threads** for multi-core systems: `WHISPER_THREADS=8`
-3. **Pre-warm** by making a dummy request after startup
-4. **Batch requests** via a message queue for high throughput
-
-## Development
-
-### Project Structure
-
-- **src/main.rs**: Server initialization and route setup
-- **src/config.rs**: Configuration loading from env vars and CLI args
-- **src/error.rs**: Error types and HTTP response handling
-- **src/whisper.rs**: whisper.cpp integration layer
-- **src/api/transcribe.rs**: Transcription endpoint handler
-- **src/api/info.rs**: Info endpoint handler
-
-### Adding New Endpoints
-
-1. Create new file in `src/api/`
-2. Implement handler function
-3. Add route in `main.rs`
-4. Export in `src/api/mod.rs`
-
-Example:
-```rust
-// src/api/custom.rs
-pub async fn custom_handler(State(state): State<Arc<AppState>>) -> Json<serde_json::Value> {
-    Json(json!({ "custom": "response" }))
-}
-
-// In main.rs
-.route("/custom", get(api::custom::custom_handler))
-```
-
-### Debugging
-
-Enable debug logging:
-```bash
-RUST_LOG=debug ./run/dev.sh
-```
-
-### Code Quality
+The easiest way to deploy:
 
 ```bash
-# Format code
-cargo fmt
-
-# Lint
-cargo clippy --all-targets --all-features
-
-# Check for issues
-cargo audit
+make docker-run
 ```
 
-## Maintenance & Updates
-
-### Updating Dependencies
+Or use Docker Compose directly:
 
 ```bash
-# Check for updates
-cargo outdated
-
-# Update all dependencies
-cargo update
-
-# Update specific dependency
-cargo update --package package-name
+docker-compose up -d
 ```
 
-### Monitoring
+To stop:
 
-Check logs:
 ```bash
-# If running with docker-compose
-docker-compose logs -f whisper-api
+make docker-down
+```
 
-# If running directly
-RUST_LOG=debug ./run/start.sh
+## Configuration
+
+Create a `.env` file (copy from `.env.example`) to customize:
+
+| Setting | Default | Purpose |
+|---------|---------|---------|
+| `WHISPER_PORT` | 8000 | Port the API listens on |
+| `WHISPER_HOST` | 0.0.0.0 | Host address |
+| `WHISPER_THREADS` | 4 | Number of CPU threads to use |
+| `WHISPER_MODEL` | `./models/ggml-base.en.bin` | Path to the model file |
+| `RUST_LOG` | info | Logging detail (debug, info, warn, error) |
+
+### Model Selection
+
+The default model (`base.en`) is optimized for English and is ~140MB.
+
+For other languages or different accuracy/speed tradeoffs, download a different model from [Hugging Face](https://huggingface.co/ggerganov/whisper.cpp):
+
+- **tiny.en** (75MB) - Fastest, English only
+- **base.en** (140MB) - Default, English only
+- **small.en** (466MB) - Better accuracy, English only
+- **medium.en** (1.5GB) - High accuracy, English only
+- **tiny** (75MB) - Supports 99 languages
+- **base** (140MB) - Supports 99 languages
+- **small** (466MB) - Supports 99 languages
+
+To use a different model:
+
+```bash
+# Download the model
+wget -O models/ggml-small.en.bin \
+  https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-small.en.bin
+
+# Update .env
+echo "WHISPER_MODEL=./models/ggml-small.en.bin" >> .env
+
+# Restart the API
+make stop
+make start
 ```
 
 ## Troubleshooting
 
-### Model not found
-```
-Error: Model file not found: ./models/ggml-base.en.bin
-```
-**Solution:** Download model or set correct path via `WHISPER_MODEL` env var
+### "Model file not found" error
 
-### Audio processing error
-```
-Error: No audio data found in file
-```
-**Solution:** Ensure audio is 16-bit PCM WAV format. Convert using ffmpeg:
+Run `make download-model` to download the default model.
+
+### "ffmpeg not found" error
+
+Install ffmpeg:
+
 ```bash
-ffmpeg -i audio.mp3 -acodec pcm_s16le -ar 16000 audio.wav
+# macOS
+brew install ffmpeg
+
+# Ubuntu/Debian
+sudo apt-get install ffmpeg
+
+# Fedora
+sudo dnf install ffmpeg
 ```
 
-### Out of memory
+### Port 8000 is already in use
+
+Change the port in `.env`:
 ```
-Killed or memory allocation failed
+WHISPER_PORT=8001
 ```
-**Solution:** Use smaller model or increase available memory
 
-## License
+### Transcription is slow
 
-MIT
+- Use a smaller model (e.g., `tiny.en` instead of `base.en`)
+- Increase `WHISPER_THREADS` in `.env` (if your CPU has multiple cores)
+- Ensure no other heavy processes are running
 
-## Contributing
+### Out of memory errors
 
-Contributions welcome! Please:
-1. Follow Rust naming conventions
-2. Add tests for new features
-3. Run `cargo fmt` and `cargo clippy` before submitting
-4. Update README for new features
+Use a smaller model:
+```
+WHISPER_MODEL=./models/ggml-tiny.en.bin
+```
 
-## Support
+## Endpoints
 
-For issues with whisper.cpp, see: https://github.com/ggerganov/whisper.cpp
-For Axum/Rust async issues, see: https://github.com/tokio-rs/axum
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/transcribe` | Upload audio and get transcription |
+| GET | `/health` | Check if API is running |
+| GET | `/info` | Get API information and configuration |
+
+## Performance Tips
+
+- **Audio format**: WAV files process faster than MP3 (no conversion needed)
+- **File size**: Smaller audio files process faster
+- **Threads**: More threads = faster processing on multi-core systems (up to CPU core count)
+- **Model size**: Smaller models are faster but less accurate
+
+## Need Help?
+
+- Check the Docker logs: `make docker-logs`
+- Review the configuration in `.env`
+- Ensure the model file was downloaded: `ls models/ggml-*.bin`
+- Verify ffmpeg is installed: `ffmpeg -version`

@@ -27,7 +27,9 @@ Cargo.lock
 
 # Runtime
 .server.pid
+.container.id
 
 # OS
 .DS_Store
 Thumbs.db
+
