@@ -1,0 +1,50 @@
+version: '3.8'
+
+services:
+  whisper-api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: whisper-rust-api
+    ports:
+      - "8000:8000"
+    environment:
+      RUST_LOG: info
+      WHISPER_THREADS: 4
+      WHISPER_MODEL: /app/models/ggml-base.en.bin
+    volumes:
+      - ./models:/app/models:ro
+      - ./logs:/app/logs
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    restart: unless-stopped
+    # Uncomment for GPU support (NVIDIA)
+    # runtime: nvidia
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: 1
+    #           capabilities: [gpu]
+
+  # Optional: Caddy reverse proxy for HTTPS
+  # caddy:
+  #   image: caddy:latest
+  #   ports:
+  #     - "80:80"
+  #     - "443:443"
+  #   volumes:
+  #     - ./Caddyfile:/etc/caddy/Caddyfile
+  #     - caddy_data:/data
+  #     - caddy_config:/config
+  #   depends_on:
+  #     - whisper-api
+
+# volumes:
+#   caddy_data:
+#   caddy_config:
