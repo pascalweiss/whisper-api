@@ -36,6 +36,9 @@ clap = { version = "4.0", features = ["derive", "env"] }
 # File handling
 tempfile = "3.8"
 
+# UUID generation
+uuid = { version = "1.0", features = ["v4"] }
+
 # Testing
 [dev-dependencies]
 tokio-test = "0.4"

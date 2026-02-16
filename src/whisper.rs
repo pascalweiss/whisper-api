@@ -1,5 +1,6 @@
 use crate::error::{AppError, AppResult};
-use std::path::Path;
+use std::path::{Path, PathBuf};
+use std::process::Command;
 use std::sync::Mutex;
 use whisper_rs::WhisperContext as WhisperCtx;
 
@@ -103,11 +104,88 @@ impl WhisperContext {
 
     /// Transcribe from audio file
     pub async fn transcribe_file(&self, file_path: &Path) -> AppResult<TranscriptionResult> {
-        let audio_data = tokio::fs::read(file_path)
+        // Convert to WAV if needed (MP3, M4A, etc.)
+        let wav_path = self.ensure_wav_format(file_path).await?;
+
+        let audio_data = tokio::fs::read(&wav_path)
             .await
             .map_err(|e| AppError::FileError(format!("Failed to read audio file: {}", e)))?;
 
+        // Clean up temporary converted file if it was created
+        if wav_path != file_path {
+            let _ = tokio::fs::remove_file(&wav_path).await;
+        }
+
         self.transcribe(&audio_data)
+    }
+
+    /// Ensure the audio file is in WAV format, converting if necessary
+    async fn ensure_wav_format(&self, file_path: &Path) -> AppResult<PathBuf> {
+        let extension = file_path
+            .extension()
+            .and_then(|e| e.to_str())
+            .unwrap_or("")
+            .to_lowercase();
+
+        // If already WAV, return as-is
+        if extension == "wav" {
+            return Ok(file_path.to_path_buf());
+        }
+
+        // Need to convert to WAV using ffmpeg
+        if !Self::is_ffmpeg_available() {
+            return Err(AppError::InvalidInput(
+                format!("Audio format '.{}' is not supported. Only WAV files are supported, or ffmpeg must be installed for format conversion.", extension)
+            ));
+        }
+
+        // Create temporary WAV file
+        let temp_dir = std::env::temp_dir();
+        let temp_wav = temp_dir.join(format!(
+            "whisper_convert_{}.wav",
+            uuid::Uuid::new_v4()
+        ));
+
+        // Convert using ffmpeg
+        let output = Command::new("ffmpeg")
+            .args(&[
+                "-i",
+                file_path.to_string_lossy().as_ref(),
+                "-acodec",
+                "pcm_s16le",
+                "-ar",
+                "16000",
+                "-ac",
+                "1",
+                "-y", // Overwrite output file
+                temp_wav.to_string_lossy().as_ref(),
+            ])
+            .output()
+            .map_err(|e| {
+                AppError::FileError(format!(
+                    "Failed to convert audio with ffmpeg: {}. Make sure ffmpeg is installed.",
+                    e
+                ))
+            })?;
+
+        if !output.status.success() {
+            let stderr = String::from_utf8_lossy(&output.stderr);
+            return Err(AppError::FileError(format!(
+                "ffmpeg conversion failed: {}",
+                stderr
+            )));
+        }
+
+        Ok(temp_wav)
+    }
+
+    /// Check if ffmpeg is available
+    fn is_ffmpeg_available() -> bool {
+        Command::new("ffmpeg")
+            .arg("-version")
+            .output()
+            .map(|output| output.status.success())
+            .unwrap_or(false)
     }
 
     /// Convert raw audio bytes to f32 samples
