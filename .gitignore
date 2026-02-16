@@ -1,0 +1,33 @@
+# Rust
+/target/
+Cargo.lock
+*.rlib
+*.rmeta
+*.so
+*.dylib
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Environment
+.env
+.env.local
+
+# Models (large files)
+/models/
+*.bin
+
+# Logs
+*.log
+
+# Runtime
+.server.pid
+
+# OS
+.DS_Store
+Thumbs.db
