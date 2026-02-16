@@ -20,7 +20,8 @@ pub struct Segment {
     pub id: i32,
     pub start: i64,
     pub end: i64,
-    pub text: String,
+    pub text_start: usize,
+    pub text_end: usize,
 }
 
 impl WhisperContext {
@@ -86,13 +87,16 @@ impl WhisperContext {
             let start = context.full_get_segment_t0(i);
             let end = context.full_get_segment_t1(i);
 
+            let text_start = full_text.len();
             full_text.push_str(&segment_text);
+            let text_end = full_text.len();
 
             segments.push(Segment {
                 id: i as i32,
                 start,
                 end,
-                text: segment_text,
+                text_start,
+                text_end,
             });
         }
 

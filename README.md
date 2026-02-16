@@ -1,7 +1,7 @@
 # Whisper Rust API
 
 ![Rust](https://img.shields.io/badge/Rust-1.70%2B-orange)
-![Version](https://img.shields.io/badge/version-0.1.0-blue)
+![Version](https://img.shields.io/badge/version-0.2.0-blue)
 ![Docker](https://img.shields.io/badge/Docker-ready-brightgreen)
 ![License](https://img.shields.io/badge/License-MIT-green)
 
@@ -60,21 +60,17 @@ Supported formats: WAV, MP3, M4A, FLAC, OGG, and more.
 ```json
 {
   "result": {
-    "text": "Hello, this is a transcription example.",
+    "text": "Hello world. How are you today?",
     "segments": [
-      {
-        "id": 0,
-        "start": 0,
-        "end": 2560,
-        "text": "Hello, this is a transcription example."
-      }
+      { "id": 0, "start": 0, "end": 1500, "text_start": 0, "text_end": 12 },
+      { "id": 1, "start": 1500, "end": 3200, "text_start": 12, "text_end": 31 }
     ]
   },
   "processing_time_ms": 1234
 }
 ```
 
-The `segments` array includes individual text chunks with their start and end times (in milliseconds).
+Each segment includes audio timestamps (`start`/`end` in milliseconds) and character offsets (`text_start`/`text_end`) into the full `text` string.
 
 ### Check API Status
 
@@ -86,7 +82,7 @@ Response:
 ```json
 {
   "status": "ok",
-  "version": "0.1.0"
+  "version": "0.2.0"
 }
 ```
 
