@@ -6,9 +6,9 @@ use axum::{
     response::IntoResponse,
     Json,
 };
+use std::io::Write;
 use std::sync::Arc;
 use tempfile::NamedTempFile;
-use tokio::io::AsyncWriteExt;
 
 #[derive(serde::Serialize)]
 pub struct TranscribeResponse {
@@ -37,7 +37,6 @@ pub async fn transcribe(
     // Write audio data to temp file
     temp_file
         .write_all(&body)
-        .await
         .map_err(|e| crate::error::AppError::FileError(format!("Failed to write audio: {}", e)))?;
 
     // Transcribe

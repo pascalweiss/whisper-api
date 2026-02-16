@@ -31,7 +31,7 @@ bytes = "1"
 
 # Configuration
 dotenv = "0.15"
-clap = { version = "4.0", features = ["derive"] }
+clap = { version = "4.0", features = ["derive", "env"] }
 
 # File handling
 tempfile = "3.8"

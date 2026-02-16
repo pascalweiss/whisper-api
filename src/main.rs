@@ -1,6 +1,4 @@
 use axum::{
-    extract::State,
-    http::StatusCode,
     response::IntoResponse,
     routing::{get, post},
     Json, Router,
@@ -38,7 +36,7 @@ async fn main() -> anyhow::Result<()> {
 
     // Initialize Whisper context
     let whisper = Arc::new(WhisperContext::new(&config.model_path)?);
-    tracing::info!("Whisper model loaded from: {}", config.model_path);
+    tracing::info!("Whisper model loaded from: {}", config.model_path.display());
 
     let state = AppState { config, whisper };
 

@@ -1,10 +1,11 @@
 use crate::error::{AppError, AppResult};
 use std::path::Path;
+use std::sync::Mutex;
 use whisper_rs::WhisperContext as WhisperCtx;
 
 /// Wrapper around whisper.cpp context with thread-safe initialization
 pub struct WhisperContext {
-    context: WhisperCtx,
+    context: Mutex<WhisperCtx>,
 }
 
 #[derive(Debug, Clone, serde::Serialize)]
@@ -36,11 +37,13 @@ impl WhisperContext {
 
         // Initialize whisper context
         let context = WhisperCtx::new(path.to_string_lossy().as_ref())
-            .map_err(|e| AppError::WhisperError(format!("Failed to initialize model: {}", e)))?;
+            .map_err(|e| AppError::WhisperError(format!("Failed to initialize model: {:?}", e)))?;
 
         tracing::info!("Whisper model initialized successfully");
 
-        Ok(WhisperContext { context })
+        Ok(WhisperContext {
+            context: Mutex::new(context),
+        })
     }
 
     /// Transcribe audio from bytes
@@ -60,34 +63,27 @@ impl WhisperContext {
         params.set_print_timestamps(false);
         params.set_print_special(false);
 
-        self.context
+        let mut context = self
+            .context
+            .lock()
+            .map_err(|e| AppError::InternalError(format!("Failed to acquire context lock: {}", e)))?;
+
+        context
             .full(params, &samples)
-            .map_err(|e| AppError::WhisperError(format!("Transcription failed: {}", e)))?;
+            .map_err(|e| AppError::WhisperError(format!("Transcription failed: {:?}", e)))?;
 
         // Extract results
         let mut full_text = String::new();
         let mut segments = Vec::new();
 
-        let num_segments = self
-            .context
-            .full_n_segments()
-            .map_err(|e| AppError::WhisperError(e))?;
+        let num_segments = context.full_n_segments();
 
         for i in 0..num_segments {
-            let segment_text = self
-                .context
+            let segment_text = context
                 .full_get_segment_text(i)
-                .map_err(|e| AppError::WhisperError(e))?;
-
-            let start = self
-                .context
-                .full_get_segment_t0(i)
-                .map_err(|e| AppError::WhisperError(e))?;
-
-            let end = self
-                .context
-                .full_get_segment_t1(i)
-                .map_err(|e| AppError::WhisperError(e))?;
+                .map_err(|e| AppError::WhisperError(format!("Failed to get segment text: {:?}", e)))?;
+            let start = context.full_get_segment_t0(i);
+            let end = context.full_get_segment_t1(i);
 
             full_text.push_str(&segment_text);
 
