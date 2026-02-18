@@ -51,7 +51,7 @@ The API is now running at `http://localhost:8000`
 Upload an audio file to be transcribed:
 
 ```bash
-curl -X POST --data-binary @audio.mp3 http://localhost:8000/transcribe
+curl -X POST -F file=@audio.mp3 http://localhost:8000/transcribe
 ```
 
 Supported formats: WAV, MP3, M4A, FLAC, OGG, and more.

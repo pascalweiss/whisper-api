@@ -147,21 +147,17 @@ impl WhisperContext {
 
     /// Ensure the audio file is in WAV format, converting if necessary
     async fn ensure_wav_format(&self, file_path: &Path) -> AppResult<PathBuf> {
-        let extension = file_path
-            .extension()
-            .and_then(|e| e.to_str())
-            .unwrap_or("")
-            .to_lowercase();
-
-        // If already WAV, return as-is
-        if extension == "wav" {
+        // Detect WAV format from file magic bytes instead of extension
+        if Self::is_wav_file(file_path)? {
             return Ok(file_path.to_path_buf());
         }
 
         // Need to convert to WAV using ffmpeg
         if !Self::is_ffmpeg_available() {
             return Err(AppError::InvalidInput(
-                format!("Audio format '.{}' is not supported. Only WAV files are supported, or ffmpeg must be installed for format conversion.", extension)
+                "Non-WAV audio format detected and ffmpeg is not installed. \
+                 Either send WAV audio or install ffmpeg for format conversion."
+                    .to_string(),
             ));
         }
 
@@ -194,12 +190,25 @@ impl WhisperContext {
         if !output.status.success() {
             let stderr = String::from_utf8_lossy(&output.stderr);
             return Err(AppError::FileError(format!(
-                "ffmpeg conversion failed: {}",
+                "Audio conversion failed. If using curl, make sure to use \
+                 -F file=@<path> or --data-binary @<path> instead of -d: {}",
                 stderr
             )));
         }
 
         Ok(temp_wav)
+    }
+
+    /// Check if a file is WAV format by reading magic bytes
+    fn is_wav_file(file_path: &Path) -> AppResult<bool> {
+        use std::io::Read;
+        let mut file = std::fs::File::open(file_path)
+            .map_err(|e| AppError::FileError(format!("Failed to open audio file: {}", e)))?;
+        let mut header = [0u8; 12];
+        let bytes_read = file
+            .read(&mut header)
+            .map_err(|e| AppError::FileError(format!("Failed to read audio header: {}", e)))?;
+        Ok(bytes_read >= 12 && &header[0..4] == b"RIFF" && &header[8..12] == b"WAVE")
     }
 
     /// Check if ffmpeg is available

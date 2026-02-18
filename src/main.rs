@@ -1,4 +1,5 @@
 use axum::{
+    extract::DefaultBodyLimit,
     response::IntoResponse,
     routing::{get, post},
     Json, Router,
@@ -46,6 +47,7 @@ async fn main() -> anyhow::Result<()> {
         .route("/transcribe", post(api::transcribe::transcribe))
         .route("/info", get(api::info::get_info))
         .route("/models", get(api::models::list_models))
+        .layer(DefaultBodyLimit::max(100 * 1024 * 1024))
         .layer(CorsLayer::permissive())
         .with_state(Arc::new(state));
 
