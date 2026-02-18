@@ -1,4 +1,4 @@
-.PHONY: help build dev start stop test clean format lint audit docker-build docker-run docker-down download-model
+.PHONY: help build dev start stop test clean format lint audit docker-build docker-start docker-stop docker-logs download-model
 
 # Auto-detect GPU features by platform
 UNAME_S := $(shell uname -s)
@@ -13,41 +13,53 @@ endif
 help:
 	@echo "Whisper Rust API - Available Commands"
 	@echo ""
-	@echo "Development:"
-	@echo "  make dev           Run with auto-reload (requires cargo-watch)"
-	@echo "  make build         Build release binary"
-	@echo "  make format        Format code"
-	@echo "  make lint          Run clippy linter"
-	@echo "  make audit         Check for security vulnerabilities"
+	@echo "  make start           Start the server locally"
+	@echo "  make stop            Stop the local server"
+	@echo "  make dev             Run with auto-reload (requires cargo-watch)"
+	@echo "  make build           Build release binary"
+	@echo "  make test            Run tests"
 	@echo ""
-	@echo "Running:"
-	@echo "  make start         Start the server"
-	@echo "  make stop          Stop the server"
-	@echo "  make test          Run tests"
+	@echo "  make docker-build    Build Docker image"
+	@echo "  make docker-start    Start Docker container"
+	@echo "  make docker-stop     Stop Docker container"
+	@echo "  make docker-logs     View Docker logs"
 	@echo ""
-	@echo "Docker:"
-	@echo "  make docker-build  Build Docker image"
-	@echo "  make docker-run    Run Docker container"
-	@echo "  make docker-down   Stop Docker container"
+	@echo "  make download-model  Download whisper model"
+	@echo "  make format          Format code"
+	@echo "  make lint            Run clippy linter"
+	@echo "  make clean           Clean build artifacts"
 	@echo ""
-	@echo "Setup:"
-	@echo "  make download-model Download whisper model"
-	@echo "  make clean         Clean build artifacts"
+	@echo "Or use the interactive CLI: ./run/dev.sh"
 
 build:
 	cargo build --release $(CARGO_FEATURES)
 
-dev:
-	./run/dev.sh
-
 start:
-	./run/start.sh
+	./run/dev.sh start
 
 stop:
-	./run/stop.sh
+	./run/dev.sh stop
+
+dev:
+	./run/dev.sh dev
 
 test:
-	./run/test.sh
+	./run/dev.sh test
+
+docker-build:
+	./run/dev.sh docker-build
+
+docker-start:
+	./run/dev.sh docker-start
+
+docker-stop:
+	./run/dev.sh docker-stop
+
+docker-logs:
+	./run/dev.sh docker-logs
+
+download-model:
+	./run/dev.sh download-model
 
 format:
 	cargo fmt
@@ -62,22 +74,6 @@ clean:
 	cargo clean
 	rm -f .server.pid
 
-download-model:
-	./run/download-model.sh
-
-docker-build:
-	docker build -t whisper-rust-api .
-
-docker-run:
-	docker-compose up -d
-
-docker-down:
-	docker-compose down
-
-docker-logs:
-	docker-compose logs -f
-
-# Install cargo-watch for auto-reload
 install-tools:
 	cargo install cargo-watch
 	cargo install cargo-audit

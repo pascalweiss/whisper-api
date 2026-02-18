@@ -1,9 +1,16 @@
 # Multi-stage Rust build for whisper-rust-api
+#
+# GPU Note: This container builds CPU-only by default. Apple Metal GPU is NOT
+# available inside Linux containers (Docker/Podman run a Linux VM on macOS,
+# which has no access to the Metal framework). For GPU-accelerated transcription:
+#   - macOS: Run natively with `./run/dev.sh start` (Metal is auto-enabled)
+#   - Linux + NVIDIA: Build with `docker build --build-arg GPU_FEATURES=cuda .`
 
 # Stage 1: Builder
 FROM rust:latest as builder
 
-# GPU acceleration: set to "cuda" for NVIDIA GPU support, or leave empty for CPU-only
+# GPU acceleration: set to "cuda" for NVIDIA GPU support, or leave empty for CPU-only.
+# "metal" is NOT supported in containers (see note above).
 ARG GPU_FEATURES=""
 
 WORKDIR /app

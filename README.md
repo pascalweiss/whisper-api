@@ -102,21 +102,38 @@ curl http://localhost:8000/models
 
 Lists model files found in the configured model directory and indicates whether the configured model exists.
 
-## Helper Scripts
+## CLI
 
-Run `make help` to see all available commands:
+All operations are available through a single script with an interactive fzf menu:
 
+```bash
+./run/dev.sh              # Interactive menu
+./run/dev.sh start        # Start locally (with Metal GPU on macOS)
+./run/dev.sh stop         # Stop local server
+./run/dev.sh dev          # Development mode with auto-reload
+./run/dev.sh docker-build # Build Docker image
+./run/dev.sh docker-start # Start in Docker container
+./run/dev.sh docker-stop  # Stop Docker container
+./run/dev.sh docker-logs  # View Docker logs
+./run/dev.sh download-model
+./run/dev.sh test
+./run/dev.sh doctor       # Check environment
 ```
-make start         # Start the API server
-make stop          # Stop the API server
-make dev           # Run with auto-reload for development
-make build         # Build the application
-make test          # Run tests
-make clean         # Clean up build files
-make docker-run    # Run in Docker
-make docker-down   # Stop Docker container
-make docker-logs   # View Docker logs
+
+Makefile shortcuts are also available (`make start`, `make stop`, `make build`, etc).
+
+## GPU Acceleration
+
+**Local (macOS with Apple Silicon):** Metal GPU is automatically enabled when running locally via `./run/dev.sh start` or `make build`. This provides ~3-4x faster transcription compared to CPU-only.
+
+**Docker/Podman containers:** Apple Metal GPU is **not available** inside Linux containers. Docker and Podman on macOS run a Linux VM which has no access to the Metal framework. Containers on macOS will always use CPU-only mode.
+
+**Linux + NVIDIA GPU:** Build the Docker image with CUDA support:
+```bash
+docker build --build-arg GPU_FEATURES=cuda -t whisper-rust-api .
 ```
+
+For the fastest transcription on macOS, run natively instead of in a container.
 
 ## Deployment Options
 
@@ -125,28 +142,14 @@ make docker-logs   # View Docker logs
 Requires Rust to be installed. Then:
 
 ```bash
-make build
-make start
+./run/dev.sh start
 ```
 
 ### Docker
 
-The easiest way to deploy:
-
 ```bash
-make docker-run
-```
-
-Or use Docker Compose directly:
-
-```bash
-docker-compose up -d
-```
-
-To stop:
-
-```bash
-make docker-down
+./run/dev.sh docker-build
+./run/dev.sh docker-start
 ```
 
 ## Configuration
