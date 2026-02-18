@@ -15,7 +15,8 @@ This API transcribes audio files to text. Simply upload an audio file and get ba
 
 ### Prerequisites
 
-- A machine with ffmpeg installed (for audio format support)
+- [Rust](https://rustup.rs) (for local builds)
+- ffmpeg (for audio format conversion)
 - 2GB+ of disk space for the model file
 
 ### Setup and Run
@@ -108,8 +109,9 @@ All operations are available through a single script with an interactive fzf men
 
 ```bash
 ./run/dev.sh              # Interactive menu
-./run/dev.sh start        # Start locally (with Metal GPU on macOS)
+./run/dev.sh start        # Start locally in background (with Metal GPU on macOS)
 ./run/dev.sh stop         # Stop local server
+./run/dev.sh logs         # Tail local server logs
 ./run/dev.sh dev          # Development mode with auto-reload
 ./run/dev.sh docker-build # Build Docker image
 ./run/dev.sh docker-start # Start in Docker container
@@ -161,7 +163,7 @@ Create a `.env` file (copy from `.env.example`) to customize:
 | `WHISPER_PORT` | 8000 | Port the API listens on |
 | `WHISPER_HOST` | 0.0.0.0 | Host address |
 | `WHISPER_THREADS` | 4 | Number of CPU threads to use |
-| `WHISPER_MODEL` | `./models/ggml-base.en.bin` | Path to the model file |
+| `WHISPER_MODEL` | `./models/ggml-large-v3-turbo.bin` | Path to the model file |
 | `RUST_LOG` | info | Logging detail (debug, info, warn, error) |
 
 ### Model Selection
@@ -223,6 +225,7 @@ WHISPER_PORT=8001
 
 ### Transcription is slow
 
+- Run locally instead of in Docker to get Metal GPU acceleration on macOS (~3-4x faster)
 - Use a smaller model (e.g., `tiny.en` instead of `base.en`)
 - Increase `WHISPER_THREADS` in `.env` (if your CPU has multiple cores)
 - Ensure no other heavy processes are running

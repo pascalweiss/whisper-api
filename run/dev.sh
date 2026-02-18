@@ -10,8 +10,9 @@ set -euo pipefail
 #   ./run/dev.sh [command]
 #
 # Commands:
-#   start            Start the API server locally (with Metal GPU on macOS)
+#   start            Start the API server locally in background (with Metal GPU on macOS)
 #   stop             Stop the local server
+#   logs             Tail the local server logs
 #   dev              Run in development mode with auto-reload
 #   docker-build     Build the Docker/Podman image
 #   docker-start     Start in Docker/Podman container
@@ -144,8 +145,9 @@ Usage:
   ./run/dev.sh [command]
 
 Commands:
-  start            Start the API server locally (with Metal GPU on macOS)
+  start            Start the API server locally in background (with Metal GPU on macOS)
   stop             Stop the local server
+  logs             Tail the local server logs
   dev              Run in development mode with auto-reload
   docker-build     Build the Docker/Podman image
   docker-start     Start in Docker/Podman container
@@ -184,14 +186,27 @@ cmd_start() {
     log_info "Building Whisper API... ${features:+(${features})}"
     cargo build --release $features
 
-    log_info "Starting server..."
-    RUST_LOG=info cargo run --release $features &
+    log_info "Starting server in background..."
+    local log_file="$root_dir/.server.log"
+    nohup "$root_dir/target/release/whisper-rust-api" > "$log_file" 2>&1 &
     local pid=$!
     echo "$pid" > "$PID_FILE"
 
-    log_success "Server started (PID: $pid)"
-    echo "API: http://localhost:8000"
-    echo "Stop: ./run/dev.sh stop"
+    # Wait for health check
+    for _ in {1..30}; do
+        if curl -s http://localhost:8000/health >/dev/null 2>&1; then
+            log_success "Server started (PID: $pid)"
+            echo "API: http://localhost:8000"
+            echo "Logs: tail -f $log_file"
+            echo "Stop: ./run/dev.sh stop"
+            return 0
+        fi
+        sleep 1
+    done
+
+    log_error "Server failed to start within 30 seconds"
+    echo "Check logs: tail -f $log_file"
+    exit 1
 }
 
 cmd_stop() {
@@ -225,6 +240,15 @@ cmd_stop() {
     kill -9 "$pid" 2>/dev/null || true
     rm -f "$PID_FILE"
     log_success "Server force-stopped"
+}
+
+cmd_logs() {
+    local log_file="$root_dir/.server.log"
+    if [[ ! -f "$log_file" ]]; then
+        log_error "No log file found: $log_file"
+        exit 1
+    fi
+    tail -f "$log_file"
 }
 
 cmd_dev() {
@@ -532,13 +556,18 @@ main() {
         is_local_running && header+=" | Local: running"
         is_docker_running && header+=" | Docker: running"
 
+        # Tag GPU-enabled options based on platform
+        local gpu_tag="[CPU]"
+        [[ "$(uname -s)" == "Darwin" ]] && gpu_tag="[Metal GPU]"
+
         local selection
         selection=$(printf '%s\n' \
-            "Start local server" \
+            "Start local server $gpu_tag" \
             "Stop local server" \
-            "Development mode (auto-reload)" \
-            "Build Docker image" \
-            "Start Docker container" \
+            "View local logs" \
+            "Development mode (auto-reload) $gpu_tag" \
+            "Build Docker image [CPU only]" \
+            "Start Docker container [CPU only]" \
             "Stop Docker container" \
             "View Docker logs" \
             "Download model" \
@@ -549,23 +578,25 @@ main() {
                   --prompt="Action > ") || exit 0
 
         case "$selection" in
-            "Start local server")              command="start" ;;
-            "Stop local server")               command="stop" ;;
-            "Development mode (auto-reload)")  command="dev" ;;
-            "Build Docker image")              command="docker-build" ;;
-            "Start Docker container")          command="docker-start" ;;
-            "Stop Docker container")           command="docker-stop" ;;
-            "View Docker logs")                command="docker-logs" ;;
-            "Download model")                  command="download-model" ;;
-            "Run tests")                       command="test" ;;
-            "Check environment")               command="doctor" ;;
-            *)                                 exit 0 ;;
+            "Start local server"*)              command="start" ;;
+            "Stop local server")                command="stop" ;;
+            "View local logs")                  command="logs" ;;
+            "Development mode"*)                command="dev" ;;
+            "Build Docker image"*)              command="docker-build" ;;
+            "Start Docker container"*)          command="docker-start" ;;
+            "Stop Docker container")            command="docker-stop" ;;
+            "View Docker logs")                 command="docker-logs" ;;
+            "Download model")                   command="download-model" ;;
+            "Run tests")                        command="test" ;;
+            "Check environment")                command="doctor" ;;
+            *)                                  exit 0 ;;
         esac
     fi
 
     case "$command" in
         start)          cmd_start ;;
         stop)           cmd_stop ;;
+        logs)           cmd_logs ;;
         dev)            cmd_dev ;;
         docker-build)   cmd_docker_build ;;
         docker-start)   cmd_docker_start ;;
