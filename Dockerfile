@@ -3,6 +3,9 @@
 # Stage 1: Builder
 FROM rust:latest as builder
 
+# GPU acceleration: set to "cuda" for NVIDIA GPU support, or leave empty for CPU-only
+ARG GPU_FEATURES=""
+
 WORKDIR /app
 
 # Install build dependencies
@@ -20,8 +23,12 @@ COPY Cargo.toml Cargo.lock* ./
 # Copy source code
 COPY src ./src
 
-# Build application
-RUN cargo build --release
+# Build application (pass --features cuda via GPU_FEATURES for NVIDIA GPU support)
+RUN if [ -n "$GPU_FEATURES" ]; then \
+        cargo build --release --features "$GPU_FEATURES"; \
+    else \
+        cargo build --release; \
+    fi
 
 # Stage 2: Runtime
 FROM debian:testing

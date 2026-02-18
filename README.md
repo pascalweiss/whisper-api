@@ -94,6 +94,14 @@ curl http://localhost:8000/info
 
 Shows the current model, configuration, and available endpoints.
 
+### List Available Models
+
+```bash
+curl http://localhost:8000/models
+```
+
+Lists model files found in the configured model directory and indicates whether the configured model exists.
+
 ## Helper Scripts
 
 Run `make help` to see all available commands:
@@ -230,6 +238,7 @@ WHISPER_MODEL=./models/ggml-tiny.en.bin
 | POST | `/transcribe` | Upload audio and get transcription |
 | GET | `/health` | Check if API is running |
 | GET | `/info` | Get API information and configuration |
+| GET | `/models` | List available model files in model directory |
 
 ## Performance Tips
 

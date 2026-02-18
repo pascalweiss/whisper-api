@@ -28,8 +28,8 @@ Cargo.lock
 # Runtime
 .server.pid
 .container.id
+run/.cache/
 
 # OS
 .DS_Store
 Thumbs.db
-

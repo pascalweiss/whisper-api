@@ -13,7 +13,8 @@ pub async fn get_info(State(state): State<Arc<AppState>>) -> Json<serde_json::Va
         "endpoints": {
             "POST /transcribe": "Transcribe audio file",
             "GET /health": "Health check",
-            "GET /info": "API information"
+            "GET /info": "API information",
+            "GET /models": "List available model files"
         }
     }))
 }

@@ -1,7 +1,7 @@
 use crate::{error::AppResult, whisper::TranscriptionResult, AppState};
 use axum::{
     body::Bytes,
-    extract::State,
+    extract::{Query, State},
     http::StatusCode,
     response::IntoResponse,
     Json,
@@ -9,6 +9,11 @@ use axum::{
 use std::io::Write;
 use std::sync::Arc;
 use tempfile::NamedTempFile;
+
+#[derive(serde::Deserialize)]
+pub struct TranscribeQuery {
+    pub language: Option<String>,
+}
 
 #[derive(serde::Serialize)]
 pub struct TranscribeResponse {
@@ -19,6 +24,7 @@ pub struct TranscribeResponse {
 /// Transcribe audio from multipart form data or raw bytes
 pub async fn transcribe(
     State(state): State<Arc<AppState>>,
+    Query(query): Query<TranscribeQuery>,
     body: Bytes,
 ) -> AppResult<impl IntoResponse> {
     let start_time = std::time::Instant::now();
@@ -31,8 +37,9 @@ pub async fn transcribe(
     }
 
     // Create temporary file for audio
-    let mut temp_file = NamedTempFile::new()
-        .map_err(|e| crate::error::AppError::FileError(format!("Failed to create temp file: {}", e)))?;
+    let mut temp_file = NamedTempFile::new().map_err(|e| {
+        crate::error::AppError::FileError(format!("Failed to create temp file: {}", e))
+    })?;
 
     // Write audio data to temp file
     temp_file
@@ -40,7 +47,10 @@ pub async fn transcribe(
         .map_err(|e| crate::error::AppError::FileError(format!("Failed to write audio: {}", e)))?;
 
     // Transcribe
-    let result = state.whisper.transcribe_file(temp_file.path()).await?;
+    let result = state
+        .whisper
+        .transcribe_file(temp_file.path(), query.language.as_deref())
+        .await?;
 
     let processing_time_ms = start_time.elapsed().as_millis();
 

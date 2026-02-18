@@ -2,7 +2,7 @@ use crate::error::{AppError, AppResult};
 use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::sync::Mutex;
-use whisper_rs::WhisperContext as WhisperCtx;
+use whisper_rs::{WhisperContext as WhisperCtx, WhisperContextParameters};
 
 /// Wrapper around whisper.cpp context with thread-safe initialization
 pub struct WhisperContext {
@@ -38,8 +38,11 @@ impl WhisperContext {
         }
 
         // Initialize whisper context
-        let context = WhisperCtx::new(path.to_string_lossy().as_ref())
-            .map_err(|e| AppError::WhisperError(format!("Failed to initialize model: {:?}", e)))?;
+        let context = WhisperCtx::new_with_params(
+            path.to_string_lossy().as_ref(),
+            WhisperContextParameters::default(),
+        )
+        .map_err(|e| AppError::WhisperError(format!("Failed to initialize model: {:?}", e)))?;
 
         tracing::info!("Whisper model initialized successfully");
 
@@ -48,29 +51,36 @@ impl WhisperContext {
         })
     }
 
-    /// Transcribe audio from bytes
-    pub fn transcribe(&self, audio: &[u8]) -> AppResult<TranscriptionResult> {
+    /// Transcribe audio from bytes.
+    /// If `language` is `None`, Whisper will auto-detect the language.
+    pub fn transcribe(
+        &self,
+        audio: &[u8],
+        language: Option<&str>,
+    ) -> AppResult<TranscriptionResult> {
         // Convert audio bytes to f32 samples
         // Note: This assumes 16-bit PCM WAV format
         let samples = self.bytes_to_samples(audio)?;
 
         // Run inference
-        let mut params = whisper_rs::FullParams::new(whisper_rs::SamplingStrategy::Greedy {
-            best_of: 1,
-        });
+        let mut params =
+            whisper_rs::FullParams::new(whisper_rs::SamplingStrategy::Greedy { best_of: 1 });
 
-        params.set_language(Some("en"));
+        params.set_language(language);
         params.set_print_realtime(false);
         params.set_print_progress(false);
         params.set_print_timestamps(false);
         params.set_print_special(false);
 
-        let mut context = self
-            .context
-            .lock()
-            .map_err(|e| AppError::InternalError(format!("Failed to acquire context lock: {}", e)))?;
+        let context = self.context.lock().map_err(|e| {
+            AppError::InternalError(format!("Failed to acquire context lock: {}", e))
+        })?;
 
-        context
+        let mut state = context.create_state().map_err(|e| {
+            AppError::WhisperError(format!("Failed to create whisper state: {:?}", e))
+        })?;
+
+        state
             .full(params, &samples)
             .map_err(|e| AppError::WhisperError(format!("Transcription failed: {:?}", e)))?;
 
@@ -78,14 +88,21 @@ impl WhisperContext {
         let mut full_text = String::new();
         let mut segments = Vec::new();
 
-        let num_segments = context.full_n_segments();
+        let num_segments = state.full_n_segments();
 
         for i in 0..num_segments {
-            let segment_text = context
-                .full_get_segment_text(i)
-                .map_err(|e| AppError::WhisperError(format!("Failed to get segment text: {:?}", e)))?;
-            let start = context.full_get_segment_t0(i);
-            let end = context.full_get_segment_t1(i);
+            let seg = state.get_segment(i).ok_or_else(|| {
+                AppError::WhisperError(format!("Failed to get segment {}", i))
+            })?;
+
+            let segment_text = seg
+                .to_str_lossy()
+                .map_err(|e| {
+                    AppError::WhisperError(format!("Failed to get segment text: {:?}", e))
+                })?
+                .to_string();
+            let start = seg.start_timestamp();
+            let end = seg.end_timestamp();
 
             let text_start = full_text.len();
             full_text.push_str(&segment_text);
@@ -106,8 +123,13 @@ impl WhisperContext {
         })
     }
 
-    /// Transcribe from audio file
-    pub async fn transcribe_file(&self, file_path: &Path) -> AppResult<TranscriptionResult> {
+    /// Transcribe from audio file.
+    /// If `language` is `None`, Whisper will auto-detect the language.
+    pub async fn transcribe_file(
+        &self,
+        file_path: &Path,
+        language: Option<&str>,
+    ) -> AppResult<TranscriptionResult> {
         // Convert to WAV if needed (MP3, M4A, etc.)
         let wav_path = self.ensure_wav_format(file_path).await?;
 
@@ -120,7 +142,7 @@ impl WhisperContext {
             let _ = tokio::fs::remove_file(&wav_path).await;
         }
 
-        self.transcribe(&audio_data)
+        self.transcribe(&audio_data, language)
     }
 
     /// Ensure the audio file is in WAV format, converting if necessary
@@ -145,10 +167,7 @@ impl WhisperContext {
 
         // Create temporary WAV file
         let temp_dir = std::env::temp_dir();
-        let temp_wav = temp_dir.join(format!(
-            "whisper_convert_{}.wav",
-            uuid::Uuid::new_v4()
-        ));
+        let temp_wav = temp_dir.join(format!("whisper_convert_{}.wav", uuid::Uuid::new_v4()));
 
         // Convert using ffmpeg
         let output = Command::new("ffmpeg")

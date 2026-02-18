@@ -1,5 +1,15 @@
 .PHONY: help build dev start stop test clean format lint audit docker-build docker-run docker-down download-model
 
+# Auto-detect GPU features by platform
+UNAME_S := $(shell uname -s)
+CARGO_FEATURES :=
+ifeq ($(UNAME_S),Darwin)
+    CARGO_FEATURES := --features metal
+endif
+ifdef CUDA
+    CARGO_FEATURES := --features cuda
+endif
+
 help:
 	@echo "Whisper Rust API - Available Commands"
 	@echo ""
@@ -25,7 +35,7 @@ help:
 	@echo "  make clean         Clean build artifacts"
 
 build:
-	cargo build --release
+	cargo build --release $(CARGO_FEATURES)
 
 dev:
 	./run/dev.sh
@@ -53,14 +63,7 @@ clean:
 	rm -f .server.pid
 
 download-model:
-	@echo "Downloading whisper model (base.en)..."
-	mkdir -p models
-	@if [ ! -f models/ggml-base.en.bin ]; then \
-		wget -O models/ggml-base.en.bin \
-			https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-base.en.bin; \
-	else \
-		echo "Model already exists at models/ggml-base.en.bin"; \
-	fi
+	./run/download-model.sh
 
 docker-build:
 	docker build -t whisper-rust-api .

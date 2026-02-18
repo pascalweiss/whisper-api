@@ -11,7 +11,7 @@ services:
     environment:
       RUST_LOG: info
       WHISPER_THREADS: 4
-      WHISPER_MODEL: /app/models/ggml-base.en.bin
+      WHISPER_MODEL: /app/models/ggml-large-v3-turbo.bin
     volumes:
       - ./models:/app/models:ro
       - ./logs:/app/logs

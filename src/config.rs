@@ -7,7 +7,12 @@ use std::path::PathBuf;
 #[command(about = "High-performance transcription API powered by whisper.cpp", long_about = None)]
 pub struct Config {
     /// Path to the whisper.cpp model file
-    #[arg(short, long, default_value = "./models/ggml-base.en.bin", env = "WHISPER_MODEL")]
+    #[arg(
+        short,
+        long,
+        default_value = "./models/ggml-large-v3-turbo.bin",
+        env = "WHISPER_MODEL"
+    )]
     pub model_path: PathBuf,
 
     /// Server host address

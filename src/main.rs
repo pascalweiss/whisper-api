@@ -45,15 +45,12 @@ async fn main() -> anyhow::Result<()> {
         .route("/health", get(health_check))
         .route("/transcribe", post(api::transcribe::transcribe))
         .route("/info", get(api::info::get_info))
+        .route("/models", get(api::models::list_models))
         .layer(CorsLayer::permissive())
         .with_state(Arc::new(state));
 
     // Start server
-    let listener = tokio::net::TcpListener::bind(&format!(
-        "{}:{}",
-        "0.0.0.0", "8000"
-    ))
-    .await?;
+    let listener = tokio::net::TcpListener::bind(&format!("{}:{}", "0.0.0.0", "8000")).await?;
 
     let server_addr = listener.local_addr()?;
     tracing::info!("🚀 Server listening on http://{}", server_addr);

@@ -3,10 +3,8 @@
 ## One-Time Setup
 
 ```bash
-# Download a model (required)
-mkdir -p models
-wget https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-base.en.bin \
-  -O models/ggml-base.en.bin
+# Download the configured model (required)
+./run/download-model.sh
 
 # Copy env example
 cp .env.example .env
@@ -103,6 +101,7 @@ WHISPER_PORT=9000 ./run/start.sh
 | `/transcribe` | POST | Transcribe audio |
 | `/health` | GET | Health check |
 | `/info` | GET | API info |
+| `/models` | GET | List available model files |
 
 ## Environment Variables
 
